@@ -1,12 +1,16 @@
 // Implements a dictionary's functionality
 
-#include <ctype.h>
-#include <stdbool.h>
-#include <stdlib.h>
+#include <cctype>       // For isalpha, tolower
+#include <cstdio>       // For FILE*, fopen, fclose, fscanf
+#include <cstdlib>      // For EXIT_FAILURE, etc.
+#include <cstring>      // For strcpy
+#include <iostream>     // For cout, cerr, endl
+#include <stdexcept>    // For bad_alloc
+#include <strings.h>    // For strcasecmp (POSIX)
+
 #include "dictionary.h"
-#include <stdio.h>
-#include <string.h>
-#include <strings.h> // Added: Required in C++ for strcasecmp (POSIX)
+
+using namespace std;
 
 // Represents a node in a hash table
 typedef struct node
@@ -24,13 +28,13 @@ unsigned int word_count = 0;
 // Returns true if word is in dictionary, else false
 bool check(const char *word)
 {
-    int index = hash(word);
-    
+    unsigned int index = hash(word);
+
     // Note: The variable 'n' below is shadowed by the 'n' in the loop.
     // Kept to preserve original logic, but strictly unnecessary.
-    node* n = table[index]; 
-    
-    for (node *n = table[index]; n != NULL; n = n->next)
+    node* n = table[index];
+
+    for (node *n = table[index]; n != nullptr; n = n->next)
     {
         if(strcasecmp(word, n->word) == 0)
         {
@@ -55,33 +59,41 @@ bool load(const char *dictionary)
 {
     FILE* file = fopen(dictionary,"r");
     if(file == NULL){
-        printf("Sorry! the program could not open the file due to some error!!");
+        cerr << "Sorry! The program could not open the file due to some error!!" << endl;
         return false;
     }
-    
-    for (int i = 0; i < 26; i++) 
+
+    for (int i = 0; i < N; i++)
     {
-        table[i] = NULL; // sets each linked list head to NULL
+        table[i] = nullptr; // sets each linked list head to NULL (using nullptr)
     }
 
     char word[LENGTH+1];
     while(fscanf(file, "%s", word) != EOF){
-        
-        // CHANGE: Added (node*) cast. C++ requires explicit casting for malloc.
-        node* n = (node*)malloc(sizeof(node));
-        
-        if(n == NULL){
-            printf("Uhmm, Sorry the program couldn't allocate enough memory for your words!");
+
+        // C++: Using 'new' operator for allocation
+        node* new_node;
+        try
+        {
+            new_node = new node;
+        }
+        catch (const bad_alloc& e)
+        {
+            cerr << "Uhmm, Sorry the program couldn't allocate enough memory for your words!" << endl;
+            fclose(file);
             return false;
         }
-        int index = hash(word);
-        strcpy(n->word, word);
-        n->next = table[index];
-        table[index] = n;
 
-        word_count++; 
+        unsigned int index = hash(word);
+        strcpy(new_node->word, word);
+        new_node->next = table[index];
+        table[index] = new_node;
+
+        word_count++;
     }
-    
+
+    fclose(file);
+
     return true;
 }
 
@@ -94,14 +106,15 @@ unsigned int size()
 // Unloads dictionary from memory, returning true if successful, else false
 bool unload(void)
 {
-    node* n;
-    for(int i = 0 ; i < 26 ; i++){
-        n = table[i];
-        while (n != NULL)
+    node* cursor;
+    for(int i = 0 ; i < N ; i++){
+        cursor = table[i];
+        while (cursor != nullptr)
         {
-            node *tmp = n;
-            n = n->next;
-            free(tmp);
+            node *tmp = cursor;
+            cursor = cursor->next;
+            // C++: Using 'delete' for deallocation
+            delete tmp;
         }
     }
     return true;
